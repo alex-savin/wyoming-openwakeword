@@ -22,6 +22,14 @@ from .const import (
 )
 from .state import ClientData, State
 
+import platform
+
+EDGETPU_SHARED_LIB = {
+    'Linux': 'libedgetpu.so.1',
+    'Darwin': 'libedgetpu.1.dylib',
+    'Windows': 'edgetpu.dll'
+}[platform.system()]
+
 _MS_PER_CHUNK = SAMPLES_PER_CHUNK // 16
 
 _LOGGER = logging.getLogger()
@@ -33,7 +41,11 @@ def mels_proc(state: State):
         melspec_model_path = state.models_dir / "melspectrogram.tflite"
         _LOGGER.debug("Loading %s", melspec_model_path)
         melspec_model = tflite.Interpreter(
-            model_path=str(melspec_model_path), num_threads=1
+            model_path=str(melspec_model_path), num_threads=1,
+            experimental_delegates=[
+                tflite.load_delegate(EDGETPU_SHARED_LIB,
+                {'device': device[0]} if device else {})
+            ]
         )
         melspec_input_index = melspec_model.get_input_details()[0]["index"]
         melspec_output_index = melspec_model.get_output_details()[0]["index"]
